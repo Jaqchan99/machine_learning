@@ -24,7 +24,8 @@ app.use('/api/ai', aiRoutes)
 app.use('/api/portfolio', portfolioRoutes)
 
 const distPath = join(__dirname, '..', 'dist')
-app.use(express.static(distPath))
+app.use(express.static(distPath, { maxAge: '1d' }))
+
 app.get('*', (req, res) => {
   res.sendFile(join(distPath, 'index.html'))
 })

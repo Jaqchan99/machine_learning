@@ -1,0 +1,20 @@
+{
+  "name": "StockSim - 股票模拟盘",
+  "short_name": "StockSim",
+  "description": "基于真实市场数据的股票模拟交易游戏，内置AI智能复盘",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "education", "games"],
+  "lang": "zh-CN"
+}

@@ -1,0 +1,13 @@
+# Render.com 一键部署配置
+# 访问 https://render.com/deploy 连接此仓库即可
+services:
+  - type: web
+    name: stocksim
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
