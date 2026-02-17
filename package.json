@@ -1,0 +1,16 @@
+{
+  "name": "stock-simulator",
+  "version": "1.0.0",
+  "description": "股票模拟盘 - 基于真实市场数据的投资模拟游戏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "server": "node server/index.js",
+    "start": "npm run build && node server/index.js",
+    "preview": "vite preview"
+  },
+  "keywords": ["stock", "simulator", "investment", "game"],
+  "author": "",
+  "license": "MIT"
+}
