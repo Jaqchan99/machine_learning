@@ -1,8 +1,32 @@
 import { Router } from 'express'
-import yahooFinance from 'yahoo-finance2'
+import YahooFinance from 'yahoo-finance2'
 import { getPortfolio, resetPortfolio } from '../store.js'
+import { getMockQuote } from '../mock-data.js'
 
 const router = Router()
+let yf = null
+
+try {
+  yf = new YahooFinance()
+  yf.suppressNotices(['yahooSurvey'])
+} catch { /* mock mode */ }
+
+async function getPrice(symbol) {
+  try {
+    if (!yf) throw new Error('no yf')
+    const quote = await yf.quote(symbol)
+    return {
+      price: quote.regularMarketPrice,
+      name: quote.shortName || quote.longName || symbol,
+      change: quote.regularMarketChange,
+      changePercent: quote.regularMarketChangePercent,
+    }
+  } catch {
+    const mock = getMockQuote(symbol)
+    if (mock) return { price: mock.price, name: mock.name, change: mock.change, changePercent: mock.changePercent }
+    throw new Error(`无法获取 ${symbol} 的价格`)
+  }
+}
 
 router.get('/', (req, res) => {
   const portfolio = getPortfolio()
@@ -16,10 +40,9 @@ router.post('/buy', async (req, res) => {
       return res.status(400).json({ success: false, error: '请输入有效的股票代码和数量' })
     }
 
-    const quote = await yahooFinance.quote(symbol.toUpperCase())
-    const price = quote.regularMarketPrice
+    const sym = symbol.toUpperCase()
+    const { price, name } = await getPrice(sym)
     const totalCost = price * shares
-
     const portfolio = getPortfolio()
 
     if (totalCost > portfolio.cash) {
@@ -31,17 +54,11 @@ router.post('/buy', async (req, res) => {
 
     portfolio.cash -= totalCost
 
-    if (!portfolio.holdings[symbol.toUpperCase()]) {
-      portfolio.holdings[symbol.toUpperCase()] = {
-        symbol: symbol.toUpperCase(),
-        name: quote.shortName || quote.longName || symbol,
-        shares: 0,
-        avgCost: 0,
-        totalCost: 0,
-      }
+    if (!portfolio.holdings[sym]) {
+      portfolio.holdings[sym] = { symbol: sym, name, shares: 0, avgCost: 0, totalCost: 0 }
     }
 
-    const holding = portfolio.holdings[symbol.toUpperCase()]
+    const holding = portfolio.holdings[sym]
     const newTotalCost = holding.totalCost + totalCost
     const newShares = holding.shares + shares
     holding.avgCost = newTotalCost / newShares
@@ -51,8 +68,8 @@ router.post('/buy', async (req, res) => {
     const transaction = {
       id: Date.now().toString(),
       type: 'buy',
-      symbol: symbol.toUpperCase(),
-      name: quote.shortName || quote.longName || symbol,
+      symbol: sym,
+      name,
       shares,
       price,
       total: totalCost,
@@ -63,7 +80,7 @@ router.post('/buy', async (req, res) => {
     res.json({
       success: true,
       data: { portfolio, transaction },
-      message: `成功买入 ${shares} 股 ${symbol.toUpperCase()}，成交价 $${price.toFixed(2)}`,
+      message: `成功买入 ${shares} 股 ${sym}，成交价 $${price.toFixed(2)}`,
     })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -77,37 +94,36 @@ router.post('/sell', async (req, res) => {
       return res.status(400).json({ success: false, error: '请输入有效的股票代码和数量' })
     }
 
-    const upperSymbol = symbol.toUpperCase()
+    const sym = symbol.toUpperCase()
     const portfolio = getPortfolio()
-    const holding = portfolio.holdings[upperSymbol]
+    const holding = portfolio.holdings[sym]
 
     if (!holding || holding.shares < shares) {
       return res.status(400).json({
         success: false,
-        error: `持仓不足！当前持有 ${holding?.shares || 0} 股 ${upperSymbol}`,
+        error: `持仓不足！当前持有 ${holding?.shares || 0} 股 ${sym}`,
       })
     }
 
-    const quote = await yahooFinance.quote(upperSymbol)
-    const price = quote.regularMarketPrice
+    const { price, name } = await getPrice(sym)
     const totalRevenue = price * shares
     const costBasis = holding.avgCost * shares
     const profit = totalRevenue - costBasis
-    const profitPercent = ((profit / costBasis) * 100)
+    const profitPercent = (profit / costBasis) * 100
 
     portfolio.cash += totalRevenue
     holding.shares -= shares
     holding.totalCost = holding.avgCost * holding.shares
 
     if (holding.shares === 0) {
-      delete portfolio.holdings[upperSymbol]
+      delete portfolio.holdings[sym]
     }
 
     const transaction = {
       id: Date.now().toString(),
       type: 'sell',
-      symbol: upperSymbol,
-      name: quote.shortName || quote.longName || symbol,
+      symbol: sym,
+      name,
       shares,
       price,
       total: totalRevenue,
@@ -121,7 +137,7 @@ router.post('/sell', async (req, res) => {
     res.json({
       success: true,
       data: { portfolio, transaction },
-      message: `成功卖出 ${shares} 股 ${upperSymbol}，成交价 $${price.toFixed(2)}，${profit >= 0 ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)} (${profitPercent >= 0 ? '+' : ''}${profitPercent.toFixed(2)}%)`,
+      message: `成功卖出 ${shares} 股 ${sym}，成交价 $${price.toFixed(2)}，${profit >= 0 ? '盈利' : '亏损'} $${Math.abs(profit).toFixed(2)} (${profitPercent >= 0 ? '+' : ''}${profitPercent.toFixed(2)}%)`,
     })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -136,30 +152,17 @@ router.get('/holdings', async (req, res) => {
     if (holdings.length === 0) {
       return res.json({
         success: true,
-        data: { holdings: [], totalValue: portfolio.cash, cash: portfolio.cash, totalProfit: 0, totalProfitPercent: 0 },
+        data: { holdings: [], totalValue: portfolio.cash, cash: portfolio.cash, totalMarketValue: 0, totalCost: 0, totalProfit: 0, totalProfitPercent: 0 },
       })
     }
 
     const enriched = await Promise.allSettled(
       holdings.map(async (h) => {
-        try {
-          const quote = await yahooFinance.quote(h.symbol)
-          const currentPrice = quote.regularMarketPrice
-          const marketValue = currentPrice * h.shares
-          const profit = marketValue - h.totalCost
-          const profitPercent = (profit / h.totalCost) * 100
-          return {
-            ...h,
-            currentPrice,
-            marketValue,
-            profit,
-            profitPercent,
-            change: quote.regularMarketChange,
-            changePercent: quote.regularMarketChangePercent,
-          }
-        } catch {
-          return { ...h, currentPrice: h.avgCost, marketValue: h.totalCost, profit: 0, profitPercent: 0 }
-        }
+        const { price, change, changePercent } = await getPrice(h.symbol)
+        const marketValue = price * h.shares
+        const profit = marketValue - h.totalCost
+        const profitPercent = (profit / h.totalCost) * 100
+        return { ...h, currentPrice: price, marketValue, profit, profitPercent, change, changePercent }
       })
     )
 

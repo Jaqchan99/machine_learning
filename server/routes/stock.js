@@ -1,7 +1,17 @@
 import { Router } from 'express'
-import yahooFinance from 'yahoo-finance2'
+import YahooFinance from 'yahoo-finance2'
+import { getMockQuote, getMockPopular, getMockSearch, getMockHistory } from '../mock-data.js'
 
 const router = Router()
+let yf = null
+let useMock = false
+
+try {
+  yf = new YahooFinance()
+  yf.suppressNotices(['yahooSurvey'])
+} catch {
+  useMock = true
+}
 
 const POPULAR_STOCKS = [
   { symbol: 'AAPL', name: '苹果', sector: '科技' },
@@ -26,36 +36,47 @@ const POPULAR_STOCKS = [
   { symbol: 'V', name: 'Visa', sector: '金融' },
 ]
 
+async function liveQuote(symbol) {
+  if (useMock || !yf) throw new Error('live unavailable')
+  const quote = await yf.quote(symbol)
+  const meta = POPULAR_STOCKS.find((s) => s.symbol === symbol)
+  return {
+    symbol: quote.symbol,
+    name: meta?.name || quote.shortName || quote.longName || symbol,
+    sector: meta?.sector || '',
+    price: quote.regularMarketPrice,
+    change: quote.regularMarketChange,
+    changePercent: quote.regularMarketChangePercent,
+    volume: quote.regularMarketVolume,
+    marketCap: quote.marketCap,
+    high: quote.regularMarketDayHigh,
+    low: quote.regularMarketDayLow,
+    open: quote.regularMarketOpen,
+    prevClose: quote.regularMarketPreviousClose,
+    fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh,
+    fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
+    pe: quote.trailingPE,
+    eps: quote.epsTrailingTwelveMonths,
+    regularMarketPrice: quote.regularMarketPrice,
+    shortName: meta?.name || quote.shortName || symbol,
+  }
+}
+
 router.get('/popular', async (req, res) => {
   try {
-    const results = await Promise.allSettled(
-      POPULAR_STOCKS.map(async (stock) => {
-        try {
-          const quote = await yahooFinance.quote(stock.symbol)
-          return {
-            symbol: stock.symbol,
-            name: stock.name,
-            sector: stock.sector,
-            price: quote.regularMarketPrice,
-            change: quote.regularMarketChange,
-            changePercent: quote.regularMarketChangePercent,
-            volume: quote.regularMarketVolume,
-            marketCap: quote.marketCap,
-            high: quote.regularMarketDayHigh,
-            low: quote.regularMarketDayLow,
-            open: quote.regularMarketOpen,
-            prevClose: quote.regularMarketPreviousClose,
-          }
-        } catch {
-          return { symbol: stock.symbol, name: stock.name, sector: stock.sector, error: true }
-        }
-      })
-    )
-    const stocks = results
-      .filter((r) => r.status === 'fulfilled')
-      .map((r) => r.value)
-      .filter((s) => !s.error)
-
+    let stocks
+    try {
+      const results = await Promise.allSettled(
+        POPULAR_STOCKS.map((s) => liveQuote(s.symbol))
+      )
+      stocks = results
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => r.value)
+      if (stocks.length < 5) throw new Error('too few results')
+    } catch {
+      console.log('[stock/popular] using mock data')
+      stocks = getMockPopular()
+    }
     res.json({ success: true, data: stocks })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
@@ -64,80 +85,54 @@ router.get('/popular', async (req, res) => {
 
 router.get('/quote/:symbol', async (req, res) => {
   try {
-    const { symbol } = req.params
-    const quote = await yahooFinance.quote(symbol.toUpperCase())
-    const stockInfo = POPULAR_STOCKS.find(
-      (s) => s.symbol === symbol.toUpperCase()
-    )
-
-    res.json({
-      success: true,
-      data: {
-        symbol: quote.symbol,
-        name: stockInfo?.name || quote.shortName || quote.longName || symbol,
-        price: quote.regularMarketPrice,
-        change: quote.regularMarketChange,
-        changePercent: quote.regularMarketChangePercent,
-        volume: quote.regularMarketVolume,
-        marketCap: quote.marketCap,
-        high: quote.regularMarketDayHigh,
-        low: quote.regularMarketDayLow,
-        open: quote.regularMarketOpen,
-        prevClose: quote.regularMarketPreviousClose,
-        fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh,
-        fiftyTwoWeekLow: quote.fiftyTwoWeekLow,
-        pe: quote.trailingPE,
-        eps: quote.epsTrailingTwelveMonths,
-      },
-    })
+    const symbol = req.params.symbol.toUpperCase()
+    let data
+    try {
+      data = await liveQuote(symbol)
+    } catch {
+      console.log(`[stock/quote] ${symbol} using mock data`)
+      data = getMockQuote(symbol)
+      if (!data) {
+        return res.status(404).json({ success: false, error: `未找到 ${symbol} 的数据` })
+      }
+    }
+    res.json({ success: true, data })
   } catch (error) {
-    res.status(500).json({ success: false, error: `无法获取 ${req.params.symbol} 的行情数据` })
+    res.status(500).json({ success: false, error: error.message })
   }
 })
 
 router.get('/search/:query', async (req, res) => {
   try {
     const { query } = req.params
-    const localResults = POPULAR_STOCKS.filter(
-      (s) =>
-        s.symbol.toLowerCase().includes(query.toLowerCase()) ||
-        s.name.toLowerCase().includes(query.toLowerCase())
-    )
-
-    if (localResults.length > 0) {
-      const results = await Promise.allSettled(
-        localResults.slice(0, 8).map(async (stock) => {
-          try {
-            const quote = await yahooFinance.quote(stock.symbol)
-            return {
-              symbol: stock.symbol,
-              name: stock.name,
-              sector: stock.sector,
-              price: quote.regularMarketPrice,
-              change: quote.regularMarketChange,
-              changePercent: quote.regularMarketChangePercent,
-            }
-          } catch {
-            return { symbol: stock.symbol, name: stock.name, sector: stock.sector }
-          }
-        })
+    let results
+    try {
+      if (useMock || !yf) throw new Error('use mock')
+      const localMatches = POPULAR_STOCKS.filter(
+        (s) => s.symbol.toLowerCase().includes(query.toLowerCase()) ||
+               s.name.toLowerCase().includes(query.toLowerCase())
       )
-      res.json({
-        success: true,
-        data: results.filter((r) => r.status === 'fulfilled').map((r) => r.value),
-      })
-      return
+      if (localMatches.length > 0) {
+        const quoteResults = await Promise.allSettled(
+          localMatches.slice(0, 8).map((s) => liveQuote(s.symbol))
+        )
+        results = quoteResults
+          .filter((r) => r.status === 'fulfilled')
+          .map((r) => r.value)
+        if (results.length === 0) throw new Error('fallback')
+      } else {
+        const searchResults = await yf.search(query)
+        results = (searchResults.quotes || []).slice(0, 8).map((q) => ({
+          symbol: q.symbol,
+          name: q.shortname || q.longname || q.symbol,
+          exchange: q.exchange,
+        }))
+      }
+    } catch {
+      console.log(`[stock/search] "${query}" using mock data`)
+      results = getMockSearch(query)
     }
-
-    const searchResults = await yahooFinance.search(query)
-    const quotes = searchResults.quotes || []
-    const mapped = quotes.slice(0, 8).map((q) => ({
-      symbol: q.symbol,
-      name: q.shortname || q.longname || q.symbol,
-      exchange: q.exchange,
-    }))
-
-    res.json({ success: true, data: mapped })
+    res.json({ success: true, data: results })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })
   }
@@ -145,32 +140,35 @@ router.get('/search/:query', async (req, res) => {
 
 router.get('/history/:symbol', async (req, res) => {
   try {
-    const { symbol } = req.params
+    const symbol = req.params.symbol.toUpperCase()
     const { period = '1mo' } = req.query
+    let data
 
-    const periodMap = {
-      '1w': { period1: new Date(Date.now() - 7 * 86400000), interval: '1d' },
-      '1mo': { period1: new Date(Date.now() - 30 * 86400000), interval: '1d' },
-      '3mo': { period1: new Date(Date.now() - 90 * 86400000), interval: '1d' },
-      '6mo': { period1: new Date(Date.now() - 180 * 86400000), interval: '1wk' },
-      '1y': { period1: new Date(Date.now() - 365 * 86400000), interval: '1wk' },
+    try {
+      if (useMock || !yf) throw new Error('use mock')
+      const periodMap = {
+        '1w': { period1: new Date(Date.now() - 7 * 86400000), interval: '1d' },
+        '1mo': { period1: new Date(Date.now() - 30 * 86400000), interval: '1d' },
+        '3mo': { period1: new Date(Date.now() - 90 * 86400000), interval: '1d' },
+        '6mo': { period1: new Date(Date.now() - 180 * 86400000), interval: '1wk' },
+        '1y': { period1: new Date(Date.now() - 365 * 86400000), interval: '1wk' },
+      }
+      const config = periodMap[period] || periodMap['1mo']
+      const result = await yf.chart(symbol, { period1: config.period1, interval: config.interval })
+      data = result.quotes
+        .map((item) => ({
+          date: item.date,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+          volume: item.volume,
+        }))
+        .filter((item) => item.close != null)
+    } catch {
+      console.log(`[stock/history] ${symbol} ${period} using mock data`)
+      data = getMockHistory(symbol, period)
     }
-
-    const config = periodMap[period] || periodMap['1mo']
-
-    const result = await yahooFinance.chart(symbol.toUpperCase(), {
-      period1: config.period1,
-      interval: config.interval,
-    })
-
-    const data = result.quotes.map((item) => ({
-      date: item.date,
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
-      volume: item.volume,
-    })).filter(item => item.close != null)
 
     res.json({ success: true, data })
   } catch (error) {
