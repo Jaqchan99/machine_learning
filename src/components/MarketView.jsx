@@ -68,12 +68,17 @@ export default function MarketView({ onSelectStock, apiKey }) {
 
   const displayStocks = searchResults || filteredStocks
 
+  const today = new Date()
+  const dateStr = today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
+  const gainCount = stocks.filter((s) => (s.changePercent || 0) > 0).length
+  const lossCount = stocks.filter((s) => (s.changePercent || 0) < 0).length
+
   return (
     <div className="px-4 pt-12 pb-4">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">行情中心</h1>
-          <p className="text-text-secondary text-xs mt-0.5">实时美股行情 · 模拟交易</p>
+          <p className="text-text-secondary text-xs mt-0.5">{dateStr}</p>
         </div>
         <button
           onClick={loadStocks}
@@ -83,6 +88,33 @@ export default function MarketView({ onSelectStock, apiKey }) {
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
+
+      {stocks.length > 0 && (
+        <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-pink-600/20 border border-indigo-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <div className="text-xl font-extrabold text-red-400">{gainCount}</div>
+                <div className="text-[10px] text-text-secondary mt-0.5">上涨</div>
+              </div>
+              <div className="w-px h-8 bg-white/10"></div>
+              <div className="text-center">
+                <div className="text-xl font-extrabold text-green-400">{lossCount}</div>
+                <div className="text-[10px] text-text-secondary mt-0.5">下跌</div>
+              </div>
+              <div className="w-px h-8 bg-white/10"></div>
+              <div className="text-center">
+                <div className="text-xl font-extrabold text-text-primary">{stocks.length - gainCount - lossCount}</div>
+                <div className="text-[10px] text-text-secondary mt-0.5">平盘</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] text-text-secondary">热门股数量</div>
+              <div className="text-lg font-bold text-primary">{stocks.length}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative mb-4">
         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
