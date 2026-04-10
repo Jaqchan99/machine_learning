@@ -105,14 +105,14 @@ export default function TradeView({ showToast, onRefreshPortfolio, apiKey }) {
       <p className="text-text-secondary text-xs mb-5">输入股票代码，开始模拟交易</p>
 
       <form onSubmit={handleSymbolSearch} className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
           value={symbol}
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
           placeholder="输入股票代码，如 AAPL、TSLA"
-          className="w-full h-11 pl-9 pr-20 bg-bg-card rounded-xl text-sm text-text-primary placeholder-text-secondary border border-border focus:border-primary focus:outline-none transition-colors"
+          className="w-full h-11 pl-10 pr-20 bg-bg-card rounded-xl text-sm text-text-primary placeholder-text-secondary border border-border focus:border-primary focus:outline-none transition-colors"
         />
         <button
           type="submit"
