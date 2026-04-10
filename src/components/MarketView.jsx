@@ -123,7 +123,7 @@ export default function MarketView({ onSelectStock, apiKey }) {
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="搜索股票代码或名称..."
-          style={{ paddingLeft: 42 }}
+          style={{ paddingLeft: 50 }}
           className="w-full h-10 pr-9 bg-bg-card rounded-xl text-sm text-text-primary placeholder-text-secondary border border-border focus:border-primary focus:outline-none transition-colors"
         />
         {searchQuery && (
