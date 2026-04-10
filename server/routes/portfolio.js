@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import YahooFinance from 'yahoo-finance2'
-import { getPortfolio, resetPortfolio } from '../store.js'
+import { getPortfolio, resetPortfolio, savePortfolio } from '../store.js'
 import { getMockQuote } from '../mock-data.js'
 
 const router = Router()
@@ -76,6 +76,7 @@ router.post('/buy', async (req, res) => {
       timestamp: new Date().toISOString(),
     }
     portfolio.transactions.unshift(transaction)
+    savePortfolio()
 
     res.json({
       success: true,
@@ -133,6 +134,7 @@ router.post('/sell', async (req, res) => {
       timestamp: new Date().toISOString(),
     }
     portfolio.transactions.unshift(transaction)
+    savePortfolio()
 
     res.json({
       success: true,
