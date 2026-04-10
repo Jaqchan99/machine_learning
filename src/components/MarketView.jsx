@@ -85,13 +85,13 @@ export default function MarketView({ onSelectStock, apiKey }) {
       </div>
 
       <div className="relative mb-4">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           placeholder="搜索股票代码或名称..."
-          className="w-full h-10 pl-10 pr-9 bg-bg-card rounded-xl text-sm text-text-primary placeholder-text-secondary border border-border focus:border-primary focus:outline-none transition-colors"
+          className="w-full h-10 pl-12 pr-9 bg-bg-card rounded-xl text-sm text-text-primary placeholder-text-secondary border border-border focus:border-primary focus:outline-none transition-colors"
         />
         {searchQuery && (
           <button
