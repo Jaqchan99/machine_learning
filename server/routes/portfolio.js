@@ -9,23 +9,10 @@ import {
 
 const router = Router()
 
-let yf = null
-try {
-  const YahooFinance = (await import('yahoo-finance2')).default
-  yf = new YahooFinance()
-  yf.suppressNotices(['yahooSurvey'])
-} catch { /* mock mode */ }
-
 async function getPrice(symbol) {
-  try {
-    if (!yf) throw new Error('no yf')
-    const quote = await yf.quote(symbol)
-    return { price: quote.regularMarketPrice, name: quote.shortName || quote.longName || symbol, change: quote.regularMarketChange, changePercent: quote.regularMarketChangePercent }
-  } catch {
-    const mock = getMockQuote(symbol)
-    if (mock) return { price: mock.price, name: mock.name, change: mock.change, changePercent: mock.changePercent }
-    throw new Error(`无法获取 ${symbol} 的价格`)
-  }
+  const mock = getMockQuote(symbol)
+  if (mock) return { price: mock.price, name: mock.name, change: mock.change, changePercent: mock.changePercent }
+  throw new Error(`未找到 ${symbol} 的价格数据`)
 }
 
 function getUserId(req) {
