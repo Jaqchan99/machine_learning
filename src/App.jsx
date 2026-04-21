@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, ArrowLeftRight, Briefcase, User, Loader2 } from 'lucide-react'
+import { TrendingUp, ArrowLeftRight, Briefcase, User } from 'lucide-react'
 import MarketView from './components/MarketView'
 import TradeView from './components/TradeView'
 import PortfolioView from './components/PortfolioView'
@@ -21,9 +21,14 @@ export default function App() {
   const [toast, setToast] = useState(null)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('openai_api_key') || '')
   const [portfolio, setPortfolio] = useState(null)
+  const [questEvents, setQuestEvents] = useState(null)
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type, id: Date.now() })
+  }, [])
+
+  const triggerQuest = useCallback((type, data) => {
+    setQuestEvents({ type, data, ts: Date.now() })
   }, [])
 
   const refreshPortfolio = useCallback(async () => {
@@ -41,6 +46,7 @@ export default function App() {
 
   const handleSelectStock = (stock) => {
     setSelectedStock(stock)
+    triggerQuest('view_stock')
   }
 
   const handleBack = () => {
@@ -51,7 +57,6 @@ export default function App() {
     setSelectedStock(null)
     setActiveTab('trade')
     setTimeout(() => {
-      window.__tradeSymbol = symbol
       window.dispatchEvent(new CustomEvent('setTradeSymbol', { detail: symbol }))
     }, 100)
   }
@@ -60,6 +65,11 @@ export default function App() {
     setApiKey(key)
     localStorage.setItem('openai_api_key', key)
     showToast('API Key 已保存', 'success')
+  }
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    if (tab === 'portfolio') triggerQuest('view_portfolio')
   }
 
   if (selectedStock) {
@@ -81,13 +91,15 @@ export default function App() {
     <div className="flex flex-col h-full bg-bg-dark">
       <div className="flex-1 overflow-y-auto pb-20">
         {activeTab === 'market' && (
-          <MarketView onSelectStock={handleSelectStock} apiKey={apiKey} />
+          <MarketView onSelectStock={handleSelectStock} apiKey={apiKey} questEvents={questEvents} triggerQuest={triggerQuest} />
         )}
         {activeTab === 'trade' && (
           <TradeView
             showToast={showToast}
             onRefreshPortfolio={refreshPortfolio}
             apiKey={apiKey}
+            triggerQuest={triggerQuest}
+            portfolio={portfolio}
           />
         )}
         {activeTab === 'portfolio' && (
@@ -113,17 +125,13 @@ export default function App() {
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => handleTabChange(id)}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                activeTab === id
-                  ? 'text-primary'
-                  : 'text-text-secondary hover:text-text-primary'
+                activeTab === id ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               <Icon size={22} strokeWidth={activeTab === id ? 2.5 : 1.5} />
-              <span className={`text-[10px] mt-1 ${activeTab === id ? 'font-semibold' : ''}`}>
-                {label}
-              </span>
+              <span className={`text-[10px] mt-1 ${activeTab === id ? 'font-semibold' : ''}`}>{label}</span>
             </button>
           ))}
         </div>

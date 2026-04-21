@@ -10,10 +10,16 @@
     "start": "npm run build && node server/index.js",
     "preview": "vite preview"
   },
-  "keywords": ["stock", "simulator", "investment", "game"],
+  "keywords": [
+    "stock",
+    "simulator",
+    "investment",
+    "game"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.104.0",
     "@tailwindcss/vite": "^4.0.9",
     "@vitejs/plugin-react": "^4.3.4",
     "compression": "^1.8.0",

@@ -4,7 +4,7 @@ import { api } from '../hooks/useApi'
 import { formatMoney, profitColor, formatPercent } from '../utils/format'
 import AIReviewPanel from './AIReviewPanel'
 
-export default function TradeView({ showToast, onRefreshPortfolio, apiKey }) {
+export default function TradeView({ showToast, onRefreshPortfolio, apiKey, triggerQuest, portfolio: parentPortfolio }) {
   const [symbol, setSymbol] = useState('')
   const [shares, setShares] = useState('')
   const [quote, setQuote] = useState(null)
@@ -33,9 +33,18 @@ export default function TradeView({ showToast, onRefreshPortfolio, apiKey }) {
     try {
       const result = await api.getHoldings()
       setPortfolio(result.data)
+
+      if (triggerQuest && result.data.holdings?.length >= 3) triggerQuest('diversify')
     } catch (err) {
       console.error(err)
     }
+  }
+
+  const checkTenTrades = async () => {
+    try {
+      const result = await api.getTransactions()
+      if (triggerQuest && result.data?.length >= 10) triggerQuest('ten_trades')
+    } catch {}
   }
 
   const fetchQuote = async (sym) => {
@@ -82,6 +91,13 @@ export default function TradeView({ showToast, onRefreshPortfolio, apiKey }) {
       setShowReview(true)
       loadPortfolio()
       onRefreshPortfolio()
+
+      if (triggerQuest) {
+        if (tradeType === 'buy') triggerQuest('buy')
+        if (tradeType === 'sell' && result.data.transaction?.profit > 0) triggerQuest('sell_profit')
+        triggerQuest('ai_review')
+        checkTenTrades()
+      }
     } catch (err) {
       showToast(err.message, 'error')
     } finally {

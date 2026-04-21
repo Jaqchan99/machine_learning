@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Search, RefreshCw, TrendingUp, Sparkles, X } from 'lucide-react'
 import { api } from '../hooks/useApi'
 import { formatMoney, formatPercent, formatVolume, profitColor } from '../utils/format'
+import QuestPanel from './QuestPanel'
 
 const SECTORS = ['全部', '科技', '电商', '汽车', '半导体', '金融', '娱乐', '工业', '消费']
 
-export default function MarketView({ onSelectStock, apiKey }) {
+export default function MarketView({ onSelectStock, apiKey, questEvents, triggerQuest }) {
   const [stocks, setStocks] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -115,6 +116,8 @@ export default function MarketView({ onSelectStock, apiKey }) {
           </div>
         </div>
       )}
+
+      <QuestPanel questEvents={questEvents} />
 
       <div className="relative mb-4">
         <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} className="text-text-secondary pointer-events-none" />
