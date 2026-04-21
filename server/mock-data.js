@@ -40,7 +40,7 @@ export function getMockQuote(symbol) {
   const base = BASE_PRICES[sym]
   if (!base) return null
 
-  if (!priceCache[sym] || Date.now() - priceCache[sym].time > 30000) {
+  if (!priceCache[sym] || Date.now() - priceCache[sym].time > 10000) {
     const price = randomFluctuation(base)
     const prevClose = randomFluctuation(base, 0.01)
     priceCache[sym] = {
