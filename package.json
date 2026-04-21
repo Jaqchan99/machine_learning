@@ -1,0 +1,37 @@
+{
+  "name": "stock-simulator",
+  "version": "1.0.0",
+  "description": "股票模拟盘 - 基于真实市场数据的投资模拟游戏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "server": "node server/index.js",
+    "start": "npm run build && node server/index.js",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "stock",
+    "simulator",
+    "investment",
+    "game"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.0",
+    "@tailwindcss/vite": "^4.0.9",
+    "@vitejs/plugin-react": "^4.3.4",
+    "compression": "^1.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "lucide-react": "^0.474.0",
+    "openai": "^4.85.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.1",
+    "tailwindcss": "^4.0.9",
+    "vite": "^6.1.1"
+  }
+}
